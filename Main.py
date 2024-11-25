@@ -5,6 +5,7 @@ import pickle
 from DateSet import MYUCF101
 from i3d.pytorch_i3d import InceptionI3d
 from soundnet.soundnet import SoundNet
+from transformers import ViTModel, ViTConfig
 from Models import *
 from torch import nn, optim
 import librosa
@@ -13,7 +14,7 @@ from datetime import datetime
 from torch.utils.tensorboard import SummaryWriter
 import pandas as pd
 import itertools
-
+import gc
 
 def main():
     args = parser.parse_args()
@@ -46,24 +47,27 @@ def main():
     if args.model_type == 'i3d_soundnet_attention':
         model = I3dRgbSoundAttentionUcf101(model_i3d, model_soundnet, drop_out=args.drop_out)
         load_audio = True
-
-    for name, param in model.soundnet.named_parameters():
-        print(name)
-        if not ('7' in name or '8' in name):
-            param.requires_grad = False
-
-    for name, param in model.i3d.named_parameters():
-        print(name)
-        if not ('logits' in name or 'Mixed_5c' in name):
-            param.requires_grad = False
-
+    if args.model_type == 'vit':
+        model = ViTUcf101(num_classes=101, drop_out=args.drop_out)
+        load_audio = False
+    if args.model_type == 'vit_soundnet_concat' or args.model_type == 'vit_soundnet_attention':
+        for name, param in model.soundnet.named_parameters():
+            print(name)
+            if not ('7' in name or '8' in name):
+                param.requires_grad = False
+    if args.model_type == 'vit_soundnet_concat':
+        for name, param in model.i3d.named_parameters():
+            print(name)
+            if not ('logits' in name or 'Mixed_5c' in name):
+                param.requires_grad = False
     model.to(device)
 
-    if args.use_pre_trained_model:
-        model.load_state_dict(torch.load(os.path.join(args.root_dir, args.checkpnts_dir, args.pre_trained_model_name)))
+    # if args.use_pre_trained_model:
+    #     model.load_state_dict(torch.load(os.path.join(args.root_dir, args.checkpnts_dir, args.pre_trained_model_name)))
 
     # train/test
-    args.batch_size =int(args.batch_size*2)
+    # args.batch_size =int(args.batch_size*2)
+    args.batch_size = 1
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     n_train_batches = int(len(trainset) / args.batch_size)
@@ -102,6 +106,11 @@ def main():
                         loss += kl_dist
                     if do_warm_up2:
                         loss += 0.1 * torch.mean(torch.abs(sound_attention-0.5))
+                
+                elif args.model_type == 'vit':
+                    print (video.shape)
+                    result = model(video)
+                    loss = criterion(result, labels)
                 else:
                     result = model(video, audio)
                     loss = criterion(result, labels)
@@ -114,7 +123,9 @@ def main():
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-
+                del video, audio, labels, result, loss
+                torch.cuda.empty_cache()
+                gc.collect()
                 if (counter % (args.print_train_stats_every_n_iters/2)) == 0:
                     print(f"iteration: {counter}  |  train loss: {train_loss/counter}  |  "
                           f"train accuracy top1: {train_accuracy_1/counter}  |  "
@@ -132,6 +143,8 @@ def main():
 
                     if args.model_type == 'i3d_soundnet_attention':
                         result, _, _, _ = model(video, audio)
+                    elif args.model_type == 'vit':
+                        result = model(video)
                     else:
                         result = model(video, audio)
 
@@ -228,7 +241,7 @@ def compute_accuracy(output, target, topk=(1,)):
     return store
 
 
-def get_batches(dataset, batch_size=1, audio_sr=22000, vid_fps=25, frames_per_clip=64, load_audio=True):
+def get_batches(dataset, batch_size=1, audio_sr=22000, vid_fps=25, frames_per_clip=32, load_audio=True):
     n_samples = dataset.__len__()
     n_val_samples = batch_size * int(n_samples / batch_size)
     samples_inds = torch.randperm(n_val_samples).reshape((-1, batch_size))

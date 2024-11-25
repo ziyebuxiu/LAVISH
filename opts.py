@@ -31,5 +31,5 @@ parser.add_argument('--drop_out', default=0.5, type=float)
 # ============================ Model Configs ============================
 parser.add_argument('--train_or_test_mode', default='train', type=str, choices=['test', 'train'])
 parser.add_argument('--use_pre_trained_model', default=False, type=bool)
-parser.add_argument('--model_type', default='i3d_soundnet_attention', choices=['i3d', 'i3d_soundnet_concat', 'i3d_soundnet_attention'], type=str)
+parser.add_argument('--model_type', default='i3d_soundnet_attention', choices=['i3d', 'i3d_soundnet_concat', 'i3d_soundnet_attention','vit'], type=str)
 parser.add_argument('--pre_trained_model_name', default=None, type=str)

@@ -1,7 +1,8 @@
 import torch
 from torch import nn, optim
 import sys
-
+import torch
+from transformers import ViTModel, ViTConfig
 
 class I3dRgbUcf101(nn.Module):
     def __init__(self, i3d, drop_out=0.5):
@@ -93,3 +94,27 @@ class I3dRgbSoundAttentionUcf101(nn.Module):
 
         return x, x_attention[:, 1], x_vid, x_audio
 
+class ViTUcf101(nn.Module):
+    def __init__(self, num_classes=101, drop_out=0.5):
+        super(ViTUcf101, self).__init__()
+        config = ViTConfig.from_pretrained('google/vit-base-patch16-224')
+        self.vit = ViTModel(config)
+        self.fc = nn.Linear(config.hidden_size, num_classes)
+        self.drop_out = nn.Dropout(p=drop_out)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        # x shape: (batch_size, num_frames, num_channels, height, width)
+        batch_size,  num_channels,num_frames, height, width = x.shape
+        if num_channels != 3:
+            raise ValueError(f"Expected 3 channels but got {num_channels}")
+        x = x.view(batch_size * num_frames, num_channels, height, width)  # Flatten the frames
+        outputs = self.vit(pixel_values=x)
+        x = outputs.last_hidden_state[:, 0, :]  # Use the [CLS] token
+        x = x.view(batch_size, num_frames, -1)  # Reshape back to (batch_size, num_frames, hidden_size)
+        x = x.mean(dim=1)  # Average over frames
+        x = self.relu(x)
+        x = self.drop_out(x)
+        x = self.fc(x)
+        return x
+            
