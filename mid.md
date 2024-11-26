@@ -42,7 +42,7 @@ AVS：Audio-Visual Segmentation
 
 数据集自带了i3d，soundnet+i3d，i3d+soundnet+attention三种识别，所以我们都跑了一下。
 
-![1732591115415](.\pictures\1732591115415.png)
+![1732591115415](./pictures/1732591115415.png)
 
 可以看到在这三种方式下效果就特别好了，top1都在0.9+,top5都在0.98+。
 
@@ -52,6 +52,6 @@ AVS：Audio-Visual Segmentation
 
 但这里的问题是，训练非常慢，在之前的参数设置下（3\*64\*224\*224)，为了不爆电脑3050ti的显存，batch_size只能设置为1，这样一个epoch要跑大概3天。
 
-![b25474b9978ded6fa0eb9370970d021](pictures\b25474b9978ded6fa0eb9370970d021.png)
+![b25474b9978ded6fa0eb9370970d021](pictures/b25474b9978ded6fa0eb9370970d021.png)
 
 现在在考虑要不要减少clip的长度，从而增大batchsize。
