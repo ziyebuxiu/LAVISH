@@ -50,6 +50,8 @@ AVS：Audio-Visual Segmentation
 
 用VIT分别在不同模态和模态混合的情况下来跑。
 
+VIT的预训练模型是`google/vit-base-patch16-224`
+
 但这里的问题是，训练非常慢，在之前的参数设置下（3\*64\*224\*224)，为了不爆电脑3050ti的显存，batch_size只能设置为1，这样一个epoch要跑大概3天。
 
 ![b25474b9978ded6fa0eb9370970d021](pictures/b25474b9978ded6fa0eb9370970d021.png)
